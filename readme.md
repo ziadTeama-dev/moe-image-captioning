@@ -135,7 +135,7 @@ Evaluation is performed using corpus BLEU with smoothing on the held-out test se
 
 ```bash
 git clone https://github.com/ziadTeama-dev/moe-image-captioning.git
-cd MoE-Image-Captioning
+cd moe-image-captioning
 pip install -r requirements.txt
 ```
 
@@ -221,6 +221,6 @@ Built to explore modern Vision-Language Models, Transformers, and Sparse Mixture
 
 ---
 
-#  👨🏻‍💻 Aurhor
+#  👨🏻‍💻 Author
 
 - **Ziad Abdel-Haliem Teama** 
