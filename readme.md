@@ -19,7 +19,7 @@ The project includes a complete training pipeline, evaluation utilities, TensorB
 
 # Demo 
 
-[demo](assets/demo.png)
+![demo](assets/demo.png)
 
 ---
 # ✨ Features
