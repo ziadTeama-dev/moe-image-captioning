@@ -40,13 +40,13 @@ class Moe_Transformer(nn.Module):
 
     
 
-    def forward(self,input,encoder_feature,padding_mask=None,enc_padding_mask=None):
+    def forward(self,input,encoder_feature,padding_mask=None,enc_padding_mask=None , add_noise:bool =True):
         ems=self.em_layer(input)
         B , seq , _ = ems.shape
         postions=torch.arange(0,seq,device=input.device).expand(B,seq)
         em_postion=self.pos_em(postions)
 
-        if self.training:
+        if self.training and add_noise:
           is_rand=torch.randint(0,2,(1,))
 
           if is_rand ==0:

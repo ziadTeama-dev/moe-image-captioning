@@ -1,5 +1,12 @@
 torch
 torchvision
-streamlit
-pillow
+numpy
+pandas
+Pillow
+imageio
+spacy
+nltk
+matplotlib
+tqdm
 tensorboard
+streamlit

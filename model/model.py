@@ -98,7 +98,7 @@ class encoder_decoder(nn.Module):
         
 
     
-    def forward(self,images,captions,padding_mask=None,enc_padding_mask=None):
+    def forward(self,images,captions,padding_mask=None,enc_padding_mask=None ,add_noise = True):
         image_pos=torch.arange(0,49,device=images.device).expand(images.size(0),-1)
         image_posem=self.pos_em_image(image_pos)
 
@@ -108,7 +108,7 @@ class encoder_decoder(nn.Module):
         captions_em=self.em_layer(captions)
 
 
-        out,div_loss=self.decoder(captions_em,image_em,padding_mask,enc_padding_mask)
+        out,div_loss=self.decoder(captions_em,image_em,padding_mask,enc_padding_mask,add_noise)
 
         return out,div_loss
     
