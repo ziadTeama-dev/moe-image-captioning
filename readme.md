@@ -11,7 +11,7 @@
 
 # 📖 Overview
 
-This project implements an end-to-end Image Captioning system that combines a CNN-based visual encoder with a custom Transformer decoder enhanced by a **Mixture of Experts (MoE)** architecture. Instead of relying on a single feed-forward network, the decoder dynamically routes tokens through specialized experts using a **Noisy Router**, increasing model capacity while keeping computation efficient.
+This project implements an end-to-end Image Captioning system that combines a CNN-based visual encoder **Resnet50** with a custom Transformer decoder enhanced by a **Mixture of Experts (MoE)** architecture made from scratch. Instead of relying on a single feed-forward network, the decoder dynamically routes tokens through specialized experts using a **Noisy Router**, increasing model capacity while keeping computation efficient.
 
 The project includes a complete training pipeline, evaluation utilities, TensorBoard integration, and a Streamlit web application for interactive inference.
 
@@ -40,7 +40,7 @@ The project includes a complete training pipeline, evaluation utilities, TensorB
 Image
   │
   ▼
-CNN Feature Encoder
+CNN Feature Encoder used **Resnet50**
   │
   ▼
 Visual Embeddings
@@ -109,6 +109,8 @@ Evaluation is performed using corpus BLEU with smoothing on the held-out test se
 ├── test.py
 └── README.md
 ```
+
+#### ** Note ** : If you didn't find checkpoints folder that mean it's too big to uploaded it here so in future you may see a link for it on google cload or somewhere **😊**  
 
 ---
 
@@ -185,6 +187,7 @@ streamlit run app.py
 Upload an image and generate captions interactively.
 
 ---
+
 
 # 📌 Future Improvements
 
