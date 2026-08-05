@@ -340,6 +340,9 @@ BLEU-4 provides a stricter evaluation because it considers sequences of up to fo
 --
 ## Example 3
 ![Image](assets/Figure_3.png)
+--
+## Example 4
+![Image](assets/Figure_4.png)
 
 ---
 
@@ -485,7 +488,12 @@ Training logs are stored in the `Logs/` directory.
 
 ## 📈 TensorBoard
 
-To visualize the training process:
+
+
+![Tensorboard](assets/tensorboard/loss.png)
+
+--
+### To visualize the training process:
 
 ```bash
 tensorboard --logdir Logs
@@ -503,6 +511,8 @@ AVG DIV LOSS
 BLEU-1
 BLEU-4
 ```
+
+
 
 ---
 
