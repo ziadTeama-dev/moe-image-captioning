@@ -135,6 +135,9 @@ def training(model,
             avg_loss = 0
             avg_div_loss=0
 
+            avg_computation_loss = 0
+            avg_exit_cr_entropy=0
+
             model.train()
             model.zero_grad()
             optimizer.zero_grad()
@@ -152,10 +155,11 @@ def training(model,
                     image = image + (torch.randn_like(image).to(device) *torch.rand(B,1,1,1).to(device)*.5)  
 
                 padding_mask = padding_mask[: , :-1]
-                out,div_loss = model(image, in_caption, padding_mask)
+                caption = caption[: , 1:]
+
+                out, _, div_loss, computation_loss, exit_cr_entropy , _ = model( image , in_caption , caption , padding_mask )
 
                 out = out.reshape(-1, vocab_size).to(device)
-                caption = caption[: , 1:]
 
                 caption = caption.reshape(-1).to(device)
 
@@ -165,11 +169,17 @@ def training(model,
                 
                 else:
                    l1_norm=0
-                 
+                   
+                #  quality metrices
                 raw_loss = cr(out, caption)
-                raw_loss = raw_loss + (alpha * div_loss) + (l1_value * l1_norm)
+                raw_loss = raw_loss + (alpha * div_loss) + (l1_value * l1_norm) + 0.1 * exit_cr_entropy + 1e-5 * computation_loss
                 avg_loss += raw_loss.item() / total_batches
+                avg_exit_cr_entropy  += exit_cr_entropy / total_batches
+
+                # performance metrices
+
                 avg_div_loss += div_loss.item() / total_batches
+                avg_computation_loss += computation_loss / total_batches
                 
                 loss = raw_loss
                 loss.backward()
@@ -202,6 +212,8 @@ def training(model,
                        
 
                     writer.add_scalar('LOSS PER BATCH',raw_loss,total_steps)
+                    writer.add_scalar('Computation LOSS PER BATCH',computation_loss,total_steps)
+                    writer.add_scalar('Exit Centropy LOSS PER BATCH', exit_cr_entropy , total_steps)
                     writer.add_scalar('DIV LOSS PER BATCH',div_loss,total_steps)
                     writer.add_scalar('Gradiant norm',tota_grad,total_steps)
                     
@@ -244,6 +256,8 @@ def training(model,
             writer.add_scalar('Learning rate',learning_rate,e)
             writer.add_scalar("AVG Loss", avg_loss, e)
             writer.add_scalar('AVG DIV LOSS',avg_div_loss,e)
+            writer.add_scalar('AVG Computation LOSS PER BATCH',avg_computation_loss,e)
+            writer.add_scalar('AVG Exit Centropy LOSS PER BATCH', avg_exit_cr_entropy , e)
 
             if avg_div_loss!=0:
                

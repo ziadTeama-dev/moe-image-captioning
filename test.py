@@ -22,17 +22,17 @@ model=encoder_decoder(em_size=712,
 
 
 # loading the checkpoint
-if os.path.exists(f"checkpoints/checkpoint_9.pth"):
-    checkpoint = torch.load(f"checkpoints/checkpoint_9.pth", map_location=device)
+if os.path.exists(f"checkpoints/checkpoint_0.pth"):
+    checkpoint = torch.load(f"checkpoints/checkpoint_0.pth", map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
 
-print("\n the model loaded \n\n")
-print("*Evaluation*: \n")
+# print("\n the model loaded \n\n")
+# print("*Evaluation*: \n")
 
-bl1,bl4=evaluate_bleu(model, test_dataset, flick, device="cuda", max_examples=None)
+# bl1,bl4=evaluate_bleu(model, test_dataset, flick, device="cuda", max_examples=None)
 
-print(f'bl1:{bl1}')
-print(f'bl4:{bl4}')
+# print(f'bl1:{bl1}')
+# print(f'bl4:{bl4}')
 
 
 

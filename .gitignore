@@ -3,3 +3,5 @@ checkpoints/*
 Data/*
 
 test_images/*
+
+old_checkpoints/*

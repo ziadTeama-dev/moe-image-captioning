@@ -37,7 +37,7 @@ training(model=model
          weight_decay=1e-3,
          l1_value=0,
          device=device,
-         logs_dir='Logs/test42_with gussian_noise',
+         logs_dir='Logs/test2_with gussian_noise and early layer exiting',
          save_epoch=1,
          lr_scheduler=lr_decay,
          )

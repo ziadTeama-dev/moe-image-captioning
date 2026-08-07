@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 def image_caption(model, full_image_path, vocab, max_length=30, device='cuda', show_image=True):
+    I2w = {i: w for w, i in vocab.items()}
+
     model.eval()
 
     # ----- Load & preprocess image -----
@@ -40,7 +42,7 @@ def image_caption(model, full_image_path, vocab, max_length=30, device='cuda', s
     # ----- Autoregressive decoding -----
     for _ in range(max_length):
         # decoder expects captions + encoder_features
-        logits, _ = model.decoder(context, image_em)  # (1, seq_len, vocab)
+        logits, exit_layer, _, _, _,exit_probability = model.decoder(context, None,image_em)  # (1, seq_len, vocab)
         
         next_step = logits[:, -1, :]                # last token logits
         next_token = next_step.softmax(-1).argmax(-1).item()
@@ -55,8 +57,9 @@ def image_caption(model, full_image_path, vocab, max_length=30, device='cuda', s
         # append to context
         context = torch.cat([context, new_tok_em], dim=1)
 
+        print(f"The early layer  for the token : [{I2w[next_token]}] is : the Layer [{exit_layer}] and it's exit probability is [{exit_probability}] ")
+
     # ----- Convert indices to words -----
-    I2w = {i: w for w, i in vocab.items()}
     gen_text = " ".join([I2w[i] for i in generated[1:]])  # skip <SOS>
 
     if show_image:
