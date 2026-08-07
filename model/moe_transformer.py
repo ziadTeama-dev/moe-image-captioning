@@ -116,7 +116,7 @@ class Moe_Transformer(nn.Module):
             
             # for inferance if exit probability > .95 it will classify as fast
             exit_probability = torch.sigmoid(exit_probability)
-            if exit_probability[0,-1,0].item() >= .5 and not self.training :
+            if exit_probability[0,-1,0].item() >= 1 and not self.training :
                 
                 out=self.layer_norm(out)
                 logits=self.fc(out)
