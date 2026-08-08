@@ -1,5 +1,6 @@
 import os
 import torch
+import torchvision
 import torch.nn as nn
 from tqdm.notebook import tqdm
 from torch.utils.tensorboard import SummaryWriter
@@ -29,30 +30,41 @@ torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-# ============ 3) LOAD FULL DATASET WITHOUT TRANSFORM ============
-flick = Flicker_data(
-    'Data/captions.csv',
-    'Data/Images/',
-    transform=None,
-    thresshold=3
+# Vocab initialization
+vocab = Vocabulary(
+    thres=3
 )
 
-vocab_size = flick.vocab.vocap_size
+vocab.build_vocab(
+    list(train_df['caption'])
+)
+
+print(
+    f"Vocabulary size: {vocab.vocap_size}"
+)
 
 
-# ============ 4) TRAIN / TEST SPLIT ============
-train_size = int(len(flick) * 0.875)
-test_size = len(flick) - train_size
+# Create dataset
 
-train_dataset, test_dataset = random_split(flick, [train_size, test_size])
+train_dataset = Flicker_data(
+    dataframe=train_df,
+    image_path='Data/Images/',
+    vocab=vocab,
+    transform=train_transform
+)
+
+vocab_size = vocab.vocap_size
+
+test_dataset = Flicker_data(
+    dataframe=test_df,
+    image_path='Data/Images/',
+    vocab=vocab,
+    transform=torchvision.models.ResNet50_Weights.IMAGENET1K_V2.transforms()
+)
 
 
-# ============ 5) ASSIGN TRANSFORMS TO EACH SPLIT ============
-train_dataset.dataset.transform = train_transform
-# test_dataset.dataset.transform = test_transform
+# Create DATALOADERS
 
-
-# ============ 6) DATALOADERS ============
 batch_size = 32
 
 train_loader = DataLoader(
@@ -65,9 +77,47 @@ train_loader = DataLoader(
 test_loader = DataLoader(
     test_dataset,
     batch_size=batch_size,
+    shuffle=False,
     collate_fn=collate_fn
 )
 
+
+
+
+
+# FINAL INFORMATION
+
+
+print("\n========== DATASET SUMMARY ==========")
+
+print(
+    f"Train unique images : {len(train_image_set)}"
+)
+
+print(
+    f"Test unique images  : {len(test_image_set)}"
+)
+
+print(
+    f"Train samples       : {len(train_dataset)}"
+)
+
+print(
+    f"Test samples        : {len(test_dataset)}"
+)
+
+print(
+    f"Vocabulary size     : {vocab.vocap_size}"
+)
+
+print(
+    f"Image overlap       : {len(overlap)}"
+)
+
+
+print("\n================= Trainer ===============")
+
+# training function
 def training(model, 
              optimizer=None, 
              train_loader=None,
@@ -268,7 +318,7 @@ def training(model,
 
 
             # evalution on small subset of test data
-            bleu1, bleu4 = evaluate_bleu(model, test_dataset, flick, 'cuda', max_examples=10)
+            bleu1, bleu4 = evaluate_bleu(model, test_dataset, vocab, 'cuda', max_examples=10)
 
             writer.add_scalar("BLEU-1", bleu1, e)
             writer.add_scalar('BLEU-4', bleu4, e)

@@ -6,7 +6,8 @@ from model.model import encoder_decoder
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
 
-model=encoder_decoder(em_size=712,
+model=encoder_decoder(
+                            em_size=712,
                             hidden_size=712,
                             expand_scale=2,
                             vocab_size=vocab_size,
@@ -37,7 +38,7 @@ training(model=model
          weight_decay=1e-3,
          l1_value=0,
          device=device,
-         logs_dir='Logs/test3_with gussian_noise and early layer exiting wiht beta of .5',
+         logs_dir='Logs/test1_with gussian_noise and early layer exiting wiht beta of .5',
          save_epoch=1,
          lr_scheduler=lr_decay,
          # checkpoints_path="checkpoints/checkpoint_9.pth",
