@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from PIL import Image
 
-def image_caption(model, full_image_path, vocab, max_length=30, device='cuda', show_image=True):
+def image_caption(model, full_image_path, vocab, max_length=30, device='cuda', show_image=True , confidance = 1):
     I2w = {i: w for w, i in vocab.items()}
 
     model.eval()
@@ -42,7 +42,7 @@ def image_caption(model, full_image_path, vocab, max_length=30, device='cuda', s
     # ----- Autoregressive decoding -----
     for _ in range(max_length):
         # decoder expects captions + encoder_features
-        logits, exit_layer, _, _, _,exit_probability = model.decoder(context, None,image_em)  # (1, seq_len, vocab)
+        logits, exit_layer, _, _, _,exit_probability = model.decoder(context, None,image_em , confidance = confidance)  # (1, seq_len, vocab)
         
         next_step = logits[:, -1, :]                # last token logits
         next_token = next_step.softmax(-1).argmax(-1).item()

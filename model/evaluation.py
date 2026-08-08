@@ -6,7 +6,7 @@ import torch
 import os
 
 
-def evaluate_bleu(model, test_data, flick, device="cuda", max_examples=None):
+def evaluate_bleu(model, test_data, flick, device="cuda", max_examples=None , confidance = 1):
     model.eval()
     smoother = SmoothingFunction().method4
 
@@ -61,7 +61,8 @@ def evaluate_bleu(model, test_data, flick, device="cuda", max_examples=None):
                 image_path,
                 flick.vocab.W2i,
                 device=device,
-                show_image=False
+                show_image=False ,
+                confidance = confidance 
             )
 
             pred_caption = clean_caption(pred_caption)

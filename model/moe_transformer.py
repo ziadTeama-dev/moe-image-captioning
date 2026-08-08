@@ -54,7 +54,7 @@ class Moe_Transformer(nn.Module):
 
     
 
-    def forward(self,input,target,encoder_feature,padding_mask=None,enc_padding_mask=None , add_noise:bool =True):
+    def forward(self,input,target,encoder_feature,padding_mask=None,enc_padding_mask=None , add_noise:bool =True , confidance = 1):
         ems=self.em_layer(input)
         B , seq , _ = ems.shape
         postions=torch.arange(0,seq,device=input.device).expand(B,seq)
@@ -116,7 +116,7 @@ class Moe_Transformer(nn.Module):
             
             # for inferance if exit probability > .95 it will classify as fast
             exit_probability = torch.sigmoid(exit_probability)
-            if exit_probability[0,-1,0].item() >= 1 and not self.training :
+            if exit_probability[0,-1,0].item() >= confidance and not self.training :
                 
                 out=self.layer_norm(out)
                 logits=self.fc(out)

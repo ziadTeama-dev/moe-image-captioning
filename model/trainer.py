@@ -172,7 +172,7 @@ def training(model,
                    
                 #  quality metrices
                 raw_loss = cr(out, caption)
-                raw_loss = raw_loss + (alpha * div_loss) + (l1_value * l1_norm) + 0.1 * exit_cr_entropy + 1e-5 * computation_loss
+                raw_loss = raw_loss + (alpha * div_loss) + (l1_value * l1_norm) + 0.5 * exit_cr_entropy + 1e-5 * computation_loss
                 avg_loss += raw_loss.item() / total_batches
                 avg_exit_cr_entropy  += exit_cr_entropy / total_batches
 
