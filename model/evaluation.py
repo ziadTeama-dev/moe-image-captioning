@@ -1,12 +1,13 @@
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from torch.utils.data import Subset
 from model.generation import image_caption
+
 from model.dataset import clean_caption
 import torch
 import os
 
 
-def evaluate_bleu(model, test_data, flick, device="cuda", max_examples=None , confidance = 1):
+def evaluate_bleu(model, test_data, vocab, device="cuda", max_examples=None , confidance = 1):
     model.eval()
     smoother = SmoothingFunction().method4
 
@@ -59,14 +60,14 @@ def evaluate_bleu(model, test_data, flick, device="cuda", max_examples=None , co
             pred_caption = image_caption(
                 model,
                 image_path,
-                flick.vocab.W2i,
+                vocab.W2i,
                 device=device,
                 show_image=False ,
                 confidance = confidance 
             )
 
             pred_caption = clean_caption(pred_caption)
-            pred_tokens = flick.vocab.tokinization(pred_caption)
+            pred_tokens = vocab.tokinization(pred_caption)
 
             all_candidates.append(pred_tokens)
 
@@ -82,7 +83,7 @@ def evaluate_bleu(model, test_data, flick, device="cuda", max_examples=None , co
             for cap in refs:
                 cap = clean_caption(cap)
                 ref_tokens.append(
-                    flick.vocab.tokinization(cap)
+                    vocab.tokinization(cap)
                 )
 
             all_references.append(ref_tokens)

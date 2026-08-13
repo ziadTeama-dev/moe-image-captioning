@@ -1,21 +1,19 @@
 import os
 import torch
-import torchvision
 import torch.nn as nn
-from tqdm.notebook import tqdm
-from torch.utils.tensorboard import SummaryWriter
-from model.evaluation import evaluate_bleu
+import random
+import numpy as np
+
+
 
 from model.dataset import *
-import torch
-import torch.nn as nn
+from tqdm.notebook import tqdm
+from model.evaluation import evaluate_bleu
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data import random_split
 from tqdm.notebook import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from model.components.utils.transform import train_transform
-import random
-import numpy as np
 
 
 # make the same split each time
@@ -59,7 +57,7 @@ test_dataset = Flicker_data(
     dataframe=test_df,
     image_path='Data/Images/',
     vocab=vocab,
-    transform=torchvision.models.ResNet50_Weights.IMAGENET1K_V2.transforms()
+    transform=None
 )
 
 
@@ -132,6 +130,7 @@ def training(model,
              logs_dir:str=None,
              save_epoch:int=None,
              lr_scheduler=None,
+             add_noise = False,
              checkpoints_path:str=None):
     """
     model: the caption model that you will train on images,captions
@@ -185,7 +184,7 @@ def training(model,
             avg_loss = 0
             avg_div_loss=0
 
-            avg_computation_loss = 0
+            avg_confidance_loss = 0
             avg_exit_cr_entropy=0
 
             model.train()
@@ -197,17 +196,22 @@ def training(model,
                 caption = caption.to(device)
                 in_caption = caption[:,:-1]
 
-                is_rand=torch.randint(0,2,(1,))
+                # is_rand=torch.randint(0,2,(1,))
 
-                if is_rand ==0:
+                # if is_rand ==0:
 
-                    B,_,_,_=image.shape
-                    image = image + (torch.randn_like(image).to(device) *torch.rand(B,1,1,1).to(device)*.5)  
+                #     B,_,_,_=image.shape
+                #     image = image + (torch.randn_like(image).to(device) *torch.rand(B,1,1,1).to(device)*.2)  
 
                 padding_mask = padding_mask[: , :-1]
                 caption = caption[: , 1:]
 
-                out, _, div_loss, computation_loss, exit_cr_entropy , _ = model( image , in_caption , caption , padding_mask )
+                out, _, div_loss, confidance_loss, exit_cr_entropy , _ = model( image , 
+                                                                               in_caption , 
+                                                                               caption , 
+                                                                               padding_mask , 
+                                                                               add_noise = add_noise )
+                
 
                 out = out.reshape(-1, vocab_size).to(device)
 
@@ -222,14 +226,14 @@ def training(model,
                    
                 #  quality metrices
                 raw_loss = cr(out, caption)
-                raw_loss = raw_loss + (alpha * div_loss) + (l1_value * l1_norm) + 0.5 * exit_cr_entropy + 1e-5 * computation_loss
+                raw_loss = raw_loss + (alpha * div_loss) + (l1_value * l1_norm) + 0.1 * exit_cr_entropy + 1e-3 * confidance_loss
                 avg_loss += raw_loss.item() / total_batches
                 avg_exit_cr_entropy  += exit_cr_entropy / total_batches
 
                 # performance metrices
 
                 avg_div_loss += div_loss.item() / total_batches
-                avg_computation_loss += computation_loss / total_batches
+                avg_confidance_loss += confidance_loss / total_batches
                 
                 loss = raw_loss
                 loss.backward()
@@ -259,13 +263,14 @@ def training(model,
                       
                       print(f'[{e}|{epochs}][{step}]: loss={raw_loss.item():.4f}')
                        
-                       
 
+                    # accuracy metric
                     writer.add_scalar('LOSS PER BATCH',raw_loss,total_steps)
-                    writer.add_scalar('Computation LOSS PER BATCH',computation_loss,total_steps)
                     writer.add_scalar('Exit Centropy LOSS PER BATCH', exit_cr_entropy , total_steps)
-                    writer.add_scalar('DIV LOSS PER BATCH',div_loss,total_steps)
                     writer.add_scalar('Gradiant norm',tota_grad,total_steps)
+                    # performance metrices
+                    writer.add_scalar('Confidance LOSS PER BATCH',confidance_loss,total_steps)
+                    writer.add_scalar('DIV LOSS PER BATCH',div_loss,total_steps)
                     
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
@@ -286,7 +291,6 @@ def training(model,
             if not os.path.exists("checkpoints"):
               os.mkdir('checkpoints')
             
-            # alpha*=0.99
               
             if save_epoch and (e % save_epoch == 0):
                 torch.save({
@@ -302,12 +306,13 @@ def training(model,
                 lr_scheduler.step()
 
             learning_rate = optimizer.param_groups[0]["lr"]
-
-            writer.add_scalar('Learning rate',learning_rate,e)
+            # accuracy metrices
             writer.add_scalar("AVG Loss", avg_loss, e)
-            writer.add_scalar('AVG DIV LOSS',avg_div_loss,e)
-            writer.add_scalar('AVG Computation LOSS PER BATCH',avg_computation_loss,e)
             writer.add_scalar('AVG Exit Centropy LOSS PER BATCH', avg_exit_cr_entropy , e)
+            writer.add_scalar('Learning rate',learning_rate,e)
+            # performance metrices
+            writer.add_scalar('AVG DIV LOSS',avg_div_loss,e)
+            writer.add_scalar('AVG Confidance LOSS PER BATCH',avg_confidance_loss,e)
 
             if avg_div_loss!=0:
                
@@ -317,14 +322,16 @@ def training(model,
               print(f'---- AVG LOSS Epoch {e} ----> {avg_loss:.4f}')
 
 
-            # evalution on small subset of test data
-            bleu1, bleu4 = evaluate_bleu(model, test_dataset, vocab, 'cuda', max_examples=10)
-
+            # evalution on small all of test data
+            bleu1, bleu4 = evaluate_bleu(model, test_dataset, vocab, 'cuda', confidance=1 , max_examples = batch_size)
+            # accuracy metrices
             writer.add_scalar("BLEU-1", bleu1, e)
             writer.add_scalar('BLEU-4', bleu4, e)
 
             print("Test BLEU-1:", bleu1)
             print("Test BLEU-4:", bleu4)
+
+            torch.cuda.empty_cache()
 
         writer.close()
 

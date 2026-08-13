@@ -1,23 +1,23 @@
 import os
 import torch
-from model.evaluation import evaluate_bleu
+# from model.evaluation import evaluate_bleu
 from model.generation import image_caption
-from model.trainer import  flick , vocab_size
+from model.trainer import  vocab , vocab_size
 from model.model import encoder_decoder
-from model.trainer import test_dataset
+# from model.trainer import test_dataset
 
 device = "cuda"  if torch.cuda.is_available() else "cpu"
 
-model=encoder_decoder(em_size=712,
-                            hidden_size=712,
-                            expand_scale=2,
+model=encoder_decoder(em_size=512,
+                            hidden_size=512,
+                            expand_scale=4,
                             vocab_size=vocab_size,
                             num_expert=3,
                             max_length=1000,
                             num_head=8,
-                            head_dim=712,
+                            head_dim=64,
                             num_layers=4,
-                            dropout_size=0.2
+                            dropout_size=0.1
                       ).to(device)
 
 
@@ -38,6 +38,6 @@ if os.path.exists(f"checkpoints/checkpoint_0.pth"):
 
 print(image_caption(model=model,
                     full_image_path='test_images/two-dogs-playing-with-flying-disc-park.jpg',
-                    vocab=flick.vocab.W2i,
+                    vocab=vocab.W2i,
                     max_length=40))
 

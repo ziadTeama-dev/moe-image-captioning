@@ -22,7 +22,7 @@ class Moe_Decoder(nn.Module):
         self.head_dim=head_dim
         
         
-        self.pre_norm=nn.LayerNorm(self.input_size)
+        self.pre_norm=nn.RMSNorm(self.input_size)
 
         self.mha=MHA(self.input_size
                      ,self.head_dim
@@ -30,7 +30,7 @@ class Moe_Decoder(nn.Module):
                      ,self.input_size
                      ,True)
         
-        self.cross_norm = nn.LayerNorm(input_size)
+        self.cross_norm = nn.RMSNorm(input_size)
         self.cross_mha = MHA(self.input_size, 
                              self.head_dim, 
                              self.num_heads, 
@@ -41,7 +41,7 @@ class Moe_Decoder(nn.Module):
 
         #out= input+ out-> from multiheadattenetion 
 
-        self.pre_norm2=nn.LayerNorm(self.input_size)
+        self.pre_norm2=nn.RMSNorm(self.input_size)
         self.noisy_router=Noisy_router(input_size,self.num_expert,True)
 
         self.moe=MOE(input_size,
@@ -50,12 +50,14 @@ class Moe_Decoder(nn.Module):
                      self.expand_scale) 
         
 
-        # out = out + out-> from (moe)
+    # out = out + out-> from (moe)
     def forward(self, x, encoder_features=None, padding_mask=None, enc_padding_mask=None):
 
         # X ------------------------
         out_norm=self.pre_norm(x)#--------------------------------------------------
         attention_output=self.mha(out_norm,out_norm,out_norm,padding_mask) #----------------------
+
+        attention_output = self.dropout(attention_output)
 
         res1= attention_output + x # attention_output + X <--------
 
@@ -71,18 +73,13 @@ class Moe_Decoder(nn.Module):
             
             res2 = res1  
 
-        # res1 ----------------------------
+        # res2 ----------------------------
         out_norm2=self.pre_norm2(res2) #---------
         rout_logits=self.noisy_router(out_norm2)#--------------
         out,div_loss=self.moe(out_norm2,rout_logits)# ---------
-        out=self.dropout(out) #out + res1<----------------------
+        out=self.dropout(out) 
 
         res2=res2+out 
-
-        # if self.training ==False: #just for searching purposes
-            # print(f'gated_scores:{attention_gated}')
-            # just to know what the model focusses on more rather than each element
-            # print(f'AVG_gated_scores:{torch.mean(attention_gated,dim=-1)}')
 
         return res2,div_loss
     

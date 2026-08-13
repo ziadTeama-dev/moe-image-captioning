@@ -205,9 +205,9 @@ print(
 )
 
 
-# ============================================================
+
 # IMAGE-LEVEL TRAIN / TEST SPLIT
-# ============================================================
+
 
 train_images, test_images = train_test_split(
     unique_images,
@@ -219,9 +219,9 @@ train_images = set(train_images)
 test_images = set(test_images)
 
 
-# ============================================================
+
 # CREATE DATAFRAMES
-# ============================================================
+
 
 train_df = df[
     df['image'].isin(train_images)
@@ -232,9 +232,9 @@ test_df = df[
 ].reset_index(drop=True)
 
 
-# ============================================================
+
 # SANITY CHECK
-# ============================================================
+
 
 train_image_set = set(train_df['image'])
 test_image_set = set(test_df['image'])
@@ -264,9 +264,8 @@ print(
 )
 
 
-# ============================================================
 # BUILD VOCABULARY USING TRAIN CAPTIONS ONLY
-# ============================================================
+
 def collate_fn(batch):
     images=[item[0] for item in batch]
     captions=[item[1] for item in batch]
