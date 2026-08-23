@@ -1,247 +1,363 @@
 # 🖼️ MOE Image Captioning
 
-A deep learning project for **Image Captioning** using a custom **Mixture of Experts (MOE) Transformer Decoder** combined with a **ResNet-50 image encoder**.
+A custom **Image Captioning** system built with **PyTorch**, combining a pretrained **ResNet-50 image encoder** with a custom **Mixture of Experts (MOE) Transformer decoder**.
 
-The model takes an image as input and generates a natural-language caption describing its content.
+The project focuses on dynamic computation through **confidence-based early exit**, aiming to reduce inference time while maintaining caption quality.
+
+> **All reported experiments in this README were performed using a model trained for only 10 epochs.**
 
 ---
 
 ## 🚀 Project Overview
 
-This project combines Computer Vision, Transformers, and Mixture of Experts into an image-captioning architecture.
+The model follows this pipeline:
+
+```text
+Image
+  │
+  ▼
+ResNet-50
+  │
+  ▼
+49 Visual Tokens
+  │
+  ▼
+Visual Positional Embeddings
+  │
+  ▼
+MOE Transformer Decoder
+  │
+  ├── Self-Attention
+  ├── Cross-Attention
+  ├── Noisy Router
+  ├── Top-1 Expert Routing
+  ├── Shared Expert
+  └── Confidence-Based Early Exit
+  │
+  ▼
+Generated Caption
+```
 
 The main components are:
 
-- **ResNet-50** as the visual feature extractor.
-- Custom **Multi-Head Attention (MHA)**.
-- Custom **Transformer Decoder**.
-- **Mixture of Experts (MOE)** for token processing.
-- **Noisy Router** for dynamically selecting experts.
-- **Cross-Attention** between text tokens and image features.
-- **Diversity Loss** to encourage balanced expert utilization.
-- **Gaussian Noise Augmentation** for both images and text embeddings.
-- **BLEU-1 / BLEU-4** for evaluation.
-- **Streamlit** interface for inference.
+* 🖼️ ResNet-50 visual encoder
+* 🧠 Custom Multi-Head Attention
+* 🔀 Mixture of Experts
+* 🎯 Noisy Router
+* 🔗 Cross-Attention
+* 🚪 Confidence-Based Early Exit
+* 📊 BLEU-1 / BLEU-4 evaluation
+* 🌐 Streamlit inference application
 
 ---
 
-# Demo 
+# 🧠 Model Architecture
 
-![demo](assets/demo.png)
+## Image Encoder
 
----
+The image encoder uses a pretrained **ResNet-50** model trained on ImageNet.
 
-## 🧠 Model Architecture
+The classification head and average pooling are removed so that spatial information is preserved.
 
-```text
-                    Input Image
-                         │
-                         ▼
-                    ResNet-50
-                         │
-                    7 × 7 Features
-                         │
-                         ▼
-                  Linear Projection
-                         │
-                         ▼
-              Image Embeddings (49 tokens)
-                         │
-                         ▼
-              Image Positional Embedding
-                         │
-                         │
-                         ▼
-              ┌─────────────────────┐
-              │   MOE Transformer   │
-              │      Decoder        │
-              └─────────────────────┘
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-       Self-Attention        Cross-Attention
-              │                     │
-              └──────────┬──────────┘
-                         ▼
-                    Noisy Router
-                         │
-             ┌───────────┼───────────┐
-             ▼           ▼           ▼
-          Expert 1    Expert 2    Expert 3
-             │           │           │
-             └───────────┼───────────┘
-                         ▼
-                  Shared Expert
-                         │
-                         ▼
-                  Output Projection
-                         │
-                         ▼
-                  Generated Caption
-```
-
-The decoder consists of **4 MOE Transformer layers**, with **3 experts** in each layer.
-
----
-
-## 👁️ Image Encoder
-
-The visual encoder is based on **ResNet-50 pretrained on ImageNet**.
-
-The original average pooling and classification head are removed so that the model can preserve spatial visual information.
-
-The resulting feature representation is:
+The resulting feature map is:
 
 ```text
 2048 × 7 × 7
 ```
 
-This is reshaped into:
+which is converted into:
 
 ```text
 49 × 2048
 ```
 
-and then projected to the model embedding dimension:
+Therefore, each image is represented using **49 visual tokens**.
 
-```text
-49 × 712
-```
-
-Therefore, the image is represented as **49 visual tokens**.
-
-The model also adds a learned positional embedding for these 49 image tokens.
+These features are projected into the model embedding space and combined with learned positional embeddings.
 
 ---
 
-## 🤖 MOE Transformer Decoder
+# 🤖 MOE Transformer Decoder
 
-The decoder contains:
+The decoder consists of **4 Transformer layers**.
 
-- Multi-Head Self-Attention
-- Cross-Attention
-- Noisy Router
-- 3 Experts
-- Shared Expert
-- Layer Normalization
-- Dropout
-- Residual Connections
-
-### Self-Attention
-
-The decoder uses causal self-attention so that each generated token cannot attend to future tokens during training.
-
-### Cross-Attention
-
-Cross-attention allows the text representation to attend to the visual features produced by the ResNet-50 encoder.
-
-This connects the generated caption with the image content.
-
----
-
-## 🔀 Mixture of Experts
-
-Instead of processing every token through the same feed-forward network, the model uses multiple experts.
-
-For every token:
+Each layer contains:
 
 ```text
-Token
-  │
-  ▼
+RMSNorm
+   │
+   ▼
+Self Multi-Head Attention
+   │
+   ▼
+Residual Connection
+   │
+   ▼
+Cross Attention
+   │
+   ▼
+Residual Connection
+   │
+   ▼
+RMSNorm
+   │
+   ▼
 Noisy Router
-  │
-  ├──► Expert 1
-  ├──► Expert 2
-  └──► Expert 3
+   │
+   ├──────────┬──────────┐
+   ▼          ▼          ▼
+Expert 1   Expert 2   Expert 3
+   │          │          │
+   └──────────┴──────────┘
+              │
+              +
+        Shared Expert
+              │
+              ▼
+       Residual Connection
 ```
 
-The router produces probabilities for the experts and the expert with the highest probability is selected for that token.
+The model uses **3 experts** and **Top-1 routing**, meaning each token is routed to the expert with the highest router probability.
 
-A **shared expert** is also applied to the input.
-
-The final MOE output combines the selected expert output with the shared expert output.
+A shared expert also processes every token.
 
 ---
 
-## 🎯 Noisy Routing
+# 🔀 Noisy Expert Routing
 
-The router contains a learnable noise mechanism.
+The router predicts which expert is most suitable for each token.
 
-During training, random Gaussian noise is added to the router logits:
-
-```text
-router logits + learned noise scale × Gaussian noise
-```
-
-This introduces randomness into expert selection and encourages exploration of different experts.
-
-During evaluation, the router does not add random noise.
-
----
-
-## ⚖️ Diversity Loss
-
-A diversity loss is used to encourage the experts to be utilized more evenly.
-
-The loss considers two aspects:
-
-- **Importance:** how much probability mass each expert receives.
-- **Load:** how many tokens are actually routed to each expert.
-
-This helps reduce the possibility that the router sends most tokens to only one expert.
-
-The final training loss includes the diversity loss:
+During training, Gaussian noise is added to the router logits using a learned noise scale:
 
 ```text
-Total Loss =
-Cross Entropy Loss
-+ α × Diversity Loss
-+ L1 Regularization
-```
-
-where the L1 term is optional.
-
----
-
-## 🔊 Gaussian Noise Augmentation
-
-Gaussian noise is used in **both the image and text parts of the model** during training.
-
-### Image Noise
-
-Random Gaussian noise can be added directly to the input image:
-
-```text
-Image + Gaussian Noise
-```
-
-The noise magnitude is randomly scaled during training.
-
-### Text Embedding Noise
-
-Gaussian noise is also randomly injected into the **text embeddings** inside the Transformer decoder.
-
-```text
-Text Embeddings
+Router Logits
       +
-Gaussian Noise
-      ↓
-Noisy Text Representation
+Learned Noise × Gaussian Noise
+      │
+      ▼
+    Softmax
+      │
+      ▼
+Expert Probabilities
 ```
 
-The noise is applied randomly during training and is disabled during evaluation.
+The highest-probability expert is selected.
 
-This provides an additional form of regularization and makes the model train with noisy representations.
+A diversity loss is also used to encourage better expert utilization.
 
 ---
 
-## 📝 Text Processing
+# 👀 Confidence-Based Early Exit
 
-The captions are processed using **spaCy** tokenization.
+One of the main ideas explored in this project is **early exit**.
 
-The vocabulary contains the following special tokens:
+Normally, every generated token goes through all 4 decoder layers:
+
+```text
+Layer 0
+   ↓
+Layer 1
+   ↓
+Layer 2
+   ↓
+Layer 3
+   ↓
+Prediction
+```
+
+With confidence-based early exit:
+
+```text
+Layer 0
+   │
+   ├── Prediction
+   └── Confidence
+         │
+         ├── High → EXIT
+         │
+         └── Low
+              ↓
+            Layer 1
+              │
+              └── ...
+```
+
+Each decoder layer has:
+
+1. An early classification head.
+2. A confidence head.
+
+If the confidence is higher than the selected threshold, the model exits early and predicts the next token without processing the remaining layers.
+
+---
+
+# 🧪 Experiments
+
+The model was trained for **10 epochs**.
+
+Two inference configurations were evaluated:
+
+* `confidence = 1.0`
+* `confidence = 0.5`
+
+The evaluation was performed on **1,012 unique test images**.
+
+---
+
+## Experiment 1 — Confidence = 1.0
+
+With a confidence threshold of `1.0`, the model effectively uses the complete decoder depth.
+
+### Results
+
+```text
+BLEU-1 = 0.616356
+BLEU-4 = 0.211024
+
+Evaluation Time = 7.08 minutes
+Images = 1012
+Epochs = 10
+```
+
+Example prediction:
+
+```text
+a man in a red shirt is climbing a rock while another man
+in a white shirt watches
+```
+
+Reference captions included descriptions such as a man climbing a rock in a red/pink shirt.
+
+---
+
+## Experiment 2 — Confidence = 0.5
+
+The confidence threshold was reduced to `0.5`, allowing the model to exit earlier whenever it was sufficiently confident.
+
+### Results
+
+```text
+BLEU-1 = 0.629993
+BLEU-4 = 0.219419
+
+Evaluation Time = 5.43 minutes
+Images = 1012
+Epochs = 10
+```
+
+Example prediction:
+
+```text
+a man in a red shirt is climbing a rock
+```
+
+---
+
+# 📊 Results Comparison
+
+| Configuration    |     BLEU-1 |     BLEU-4 | Evaluation Time |
+| ---------------- | ---------: | ---------: | --------------: |
+| Confidence = 1.0 |     0.6164 |     0.2110 |        7.08 min |
+| Confidence = 0.5 | **0.6300** | **0.2194** |    **5.43 min** |
+
+The `0.5` confidence experiment reduced evaluation time from:
+
+```text
+7.08 min → 5.43 min
+```
+
+which is approximately a **23% reduction in evaluation time**.
+
+At the same time, the measured BLEU scores did **not decrease**:
+
+```text
+BLEU-1
+0.6164 → 0.6300
+
+BLEU-4
+0.2110 → 0.2194
+```
+
+In this experiment, the early-exit configuration actually produced a small improvement in the measured BLEU scores.
+
+> The important observation is that early exit reduced evaluation time without causing a degradation in BLEU on this experiment. The BLEU improvement should not be interpreted as proof that early exit inherently improves model quality.
+
+---
+
+# 📸 Demo
+
+![Demo](assets/demo.png)
+
+---
+
+# 📸 Sample Outputs
+
+## Example 1
+
+![Image](assets/Figure_1.png)
+
+## Example 2
+
+![Image](assets/Figure_2.png)
+
+## Example 3
+
+![Image](assets/Figure_3.png)
+
+## Example 4
+
+![Image](assets/Figure_4.png)
+
+---
+
+# 📈 Evaluation Results
+
+The project evaluates the generated captions using:
+
+* **BLEU-1**
+* **BLEU-4**
+
+For each image, all available reference captions are compared against the generated caption.
+
+The evaluation also makes sure that an image is not evaluated multiple times even though Flickr8k contains multiple captions for each image.
+
+---
+
+# 📚 Dataset
+
+The project uses the **Flickr8k** dataset.
+
+Each image contains multiple human-written captions.
+
+The dataset is split at the **image level** to prevent captions belonging to the same image from appearing in both training and testing sets.
+
+```text
+Dataset: Flickr8k
+Test Split: 12.5%
+Random State: 42
+```
+
+The reported evaluation contains:
+
+```text
+1012 unique images
+```
+
+---
+
+# 📝 Caption Processing
+
+Captions are cleaned before being passed to the model.
+
+The preprocessing includes:
+
+* Lowercasing
+* Removing punctuation
+* Removing digits
+* Removing non-alphabetic characters
+* Removing extra spaces
+
+The vocabulary contains:
 
 ```text
 <PAD>
@@ -250,103 +366,185 @@ The vocabulary contains the following special tokens:
 <UNK>
 ```
 
-Captions are cleaned before tokenization by:
-
-- Converting text to lowercase.
-- Removing punctuation.
-- Removing numbers.
-- Removing non-alphabetic characters.
-- Removing extra spaces.
+Tokenization is performed using **spaCy**.
 
 ---
 
-## 🖼️ Data Augmentation
+# 🖼️ Data Augmentation
 
-Training images use several augmentations:
+The training images use:
 
-- Resize
-- Random Crop
-- Random Horizontal Flip
-- Random Rotation
-- Random Perspective
-- Color Jitter
-- Normalization
+* Resize
+* Random Crop
+* Random Horizontal Flip
+* Random Rotation
+* Random Perspective
+* Color Jitter
+* ImageNet normalization
 
-Gaussian noise is additionally applied randomly during training.
+Pipeline:
 
----
-
-## 📊 Training Configuration
-
-| Parameter | Value |
-|---|---:|
-| Embedding Size | 712 |
-| Hidden Size | 712 |
-| Attention Heads | 8 |
-| Head Dimension | 712 |
-| Transformer Layers | 4 |
-| Number of Experts | 3 |
-| Expert Expansion Scale | 2 |
-| Dropout | 0.2 |
-| Optimizer | AdamW |
-| Initial Learning Rate | `1e-4` |
-| Weight Decay | `1e-3` |
-| Epochs | 10 |
-| Batch Size | 32 |
-| Gradient Clipping | 1.0 |
-| Label Smoothing | 0.05 |
+```text
+Resize
+  ↓
+Random Crop
+  ↓
+Random Horizontal Flip
+  ↓
+Random Rotation
+  ↓
+Random Perspective
+  ↓
+Color Jitter
+  ↓
+ToTensor
+  ↓
+ImageNet Normalization
+```
 
 ---
 
-## 🧮 Number of Parameters
+# 🧪 Training Configuration
 
-The trained model contains:
+The reported experiments use the following model configuration:
 
-**186,897,811 parameters**
+| Parameter              |            Value |
+| ---------------------- | ---------------: |
+| Embedding Size         |              712 |
+| Hidden Size            |              712 |
+| Attention Heads        |                8 |
+| Head Dimension         |              712 |
+| Transformer Layers     |                4 |
+| Number of Experts      |                3 |
+| Expert Expansion Scale |                2 |
+| Dropout                |              0.2 |
+| Epochs                 |           **10** |
+| Optimizer              |            AdamW |
+| Learning Rate          |           `1e-4` |
+| Weight Decay           |           `1e-3` |
+| LR Scheduler           | Cosine Annealing |
 
-Approximately:
-
-**186.9M parameters**
-
----
-
-## 📈 Results
-
-The model was evaluated using BLEU scores.
-
-| Metric | Score |
-|---|---:|
-| **BLEU-1** | **0.753** |
-| **BLEU-4** | **0.397** |
-
-### Interpretation
-
-**BLEU-1 = 0.753**
-
-The model achieves a relatively strong unigram overlap with the reference captions.
-
-**BLEU-4 = 0.397**
-
-BLEU-4 provides a stricter evaluation because it considers sequences of up to four consecutive tokens.
-
-# 📸 Sample Outputs
-
-
-## Example 1
-![Image](assets/Figure_1.png)
 --
-## Example 2
-![Image](assets/Figure_2.png)
---
-## Example 3
-![Image](assets/Figure_3.png)
---
-## Example 4
-![Image](assets/Figure_4.png)
+
+### Hardware
+Training and evaluation were performed on an NVIDIA Quadro P2000.
 
 ---
 
-## 📁 Project Structure
+# 📊 Training Monitoring
+
+Training metrics are logged using TensorBoard.
+
+Tracked metrics include:
+
+```text
+Loss
+Diversity Loss
+Gradient Norm
+Learning Rate
+Average Loss
+Confidence Loss
+Early-Exit Cross Entropy
+BLEU-1
+BLEU-4
+```
+
+Run TensorBoard using:
+
+```bash
+tensorboard --logdir Logs
+```
+
+---
+
+# 💾 Checkpoints
+
+Model checkpoints are saved inside:
+
+```text
+checkpoints/
+```
+
+Example:
+
+```text
+checkpoints/
+├── checkpoint_0.pth
+├── checkpoint_1.pth
+├── ...
+└── checkpoint_9.pth
+```
+
+The Streamlit application loads:
+
+```text
+checkpoints/checkpoint_9.pth
+```
+
+---
+
+# 🌐 Streamlit Application
+
+The project includes a simple Streamlit interface.
+
+Run:
+
+```bash
+streamlit run app.py
+```
+
+Then:
+
+1. Upload an image.
+2. Click **Generate Caption**.
+3. The model generates the caption.
+4. The generated caption is displayed.
+
+---
+
+# ⚙️ Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/ziadTeama-dev/moe-image-captioning.git
+cd moe-image-captioning
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Install the spaCy English model:
+
+```bash
+python -m spacy download en_core_web_sm
+```
+
+---
+
+# 🏋️ Training
+
+Run:
+
+```bash
+python train.py
+```
+
+The training configuration uses:
+
+```text
+Epochs = 10
+Learning Rate = 1e-4
+Optimizer = AdamW
+Scheduler = CosineAnnealingLR
+```
+
+---
+
+# 📁 Project Structure
 
 ```text
 .
@@ -366,17 +564,15 @@ BLEU-4 provides a stricter evaluation because it considers sequences of up to fo
 │   └── captions.csv
 │
 ├── Logs/
-│   └── test42_with gaussian_noise/
+│   └── ...
 │
 ├── model/
 │   ├── components/
 │   │   ├── utils/
-│   │   │   ├── diversity_loss.py
-│   │   │   └── transform.py
-│   │   │
+│   │   │   └── diversity_loss.py
 │   │   ├── mha.py
-│   │   ├── moe_decoder.py
 │   │   ├── moe.py
+│   │   ├── moe_decoder.py
 │   │   └── noisy_router.py
 │   │
 │   ├── dataset.py
@@ -386,245 +582,112 @@ BLEU-4 provides a stricter evaluation because it considers sequences of up to fo
 │   ├── moe_transformer.py
 │   └── trainer.py
 │
-├── test_images/
-│
-├── .gitignore
 ├── app.py
-├── readme.md
-├── requirements.txt
+├── train.py
 ├── test.py
 ├── train.ipynb
-└── train.py
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## 💾 Checkpoints
+# ✨ Main Features
 
-During training, the project automatically creates a `checkpoints` directory and saves checkpoints according to the configured saving interval.
+* 🖼️ Image Captioning
+* 🧠 ResNet-50 Image Encoder
+* 🤖 Custom MOE Transformer
+* 🔀 Top-1 Expert Routing
+* 🎯 Noisy Router
+* 🔗 Cross-Attention
+* 👁️ Custom Multi-Head Attention
+* ⚖️ Diversity Loss
+* 🚪 Confidence-Based Early Exit
+* 📊 BLEU-1 / BLEU-4 Evaluation
+* 📈 TensorBoard Monitoring
+* 🌐 Streamlit Application
+* 💾 Model Checkpointing
+* 📝 Autoregressive Caption Generation
 
-For example:
+---
+
+# 🔬 What I Learned / Main Challenges
+
+One of the main challenges was balancing **caption quality and inference speed**.
+
+Running the complete decoder for every generated token is computationally expensive.
+
+This motivated the implementation of **confidence-based early exit**, where the model can decide that it has enough information to predict a token before reaching the final layer.
+
+The experiment showed that:
 
 ```text
-checkpoints/
-├── checkpoint_0.pth
-├── checkpoint_1.pth
-├── ...
-└── checkpoint_9.pth
+Confidence = 1.0
+        ↓
+7.08 minutes
+
+Confidence = 0.5
+        ↓
+5.43 minutes
 ```
 
-### Important Note
+while the BLEU scores remained stable and slightly improved in the tested run.
 
-If you don't find the `checkpoints` folder in the repository, this is most likely because the checkpoint files are **very large** due to the model's approximately **186.9M parameters**.
+This suggests that **dynamic computation can be a promising direction for making image-captioning models more efficient**.
 
-The trained checkpoints can be added to the repository in the future or provided separately.
+---
 
-The Streamlit application currently expects:
+# 🔮 Future Improvements
+
+Possible future experiments include:
+
+* Testing more confidence thresholds.
+* Finding the optimal speed/quality trade-off.
+* Training for more than 10 epochs.
+* Increasing or decreasing the number of experts.
+* Comparing different routing strategies.
+* Experimenting with Top-2 routing.
+* Adding beam search.
+* Testing stronger visual encoders.
+* Adding CIDEr and METEOR evaluation.
+* Optimizing inference latency.
+* Studying expert utilization.
+* Improving the early-exit training objective.
+
+---
+
+# 📌 Final Results
+
+The main experiment can be summarized as:
 
 ```text
-checkpoints/checkpoint_9.pth
+                 Confidence 1.0     Confidence 0.5
+
+BLEU-1              0.6164             0.6300
+BLEU-4              0.2110             0.2194
+Time                 7.08 min           5.43 min
+Training Epochs        10                 10
 ```
 
-for inference.
-
----
-
-## 🌐 Streamlit Application
-
-The project includes a Streamlit interface for testing the trained model.
-
-Run:
-
-```bash
-streamlit run app.py
-```
-
-Then:
-
-1. Upload an image.
-2. Click **Generate Caption**.
-3. The model generates a caption for the image.
-
-The application loads the trained checkpoint and performs autoregressive caption generation.
-
----
-
-## ⚙️ Installation
-
-Install the required Python packages:
-
-```bash
-pip install -r requirements.txt
-```
-
-Install the spaCy English tokenizer:
-
-```bash
-python -m spacy download en_core_web_sm
-```
-
----
-
-## 🏋️ Training
-
-To train the model:
-
-```bash
-python train.py
-```
-
-The training process tracks:
-
-- Training Loss
-- Diversity Loss
-- Gradient Norm
-- Learning Rate
-- BLEU-1
-- BLEU-4
-
-Training logs are stored in the `Logs/` directory.
-
----
-
-## 📈 TensorBoard
-
-
-
-![Tensorboard](assets/tensorboard/loss.png)
-
---
-### To visualize the training process:
-
-```bash
-tensorboard --logdir Logs
-```
-
-The project logs:
+### 🏆 Best Tested Configuration
 
 ```text
-LOSS PER BATCH
-DIV LOSS PER BATCH
-Gradient norm
-Learning rate
-AVG Loss
-AVG DIV LOSS
-BLEU-1
-BLEU-4
+Confidence = 0.5
+BLEU-1 = 0.62999
+BLEU-4 = 0.21942
+Evaluation Time = 5.43 minutes
 ```
 
-
-
----
-
-## 🔬 Evaluation
-
-The project includes a BLEU evaluation pipeline.
-
-The evaluation process:
-
-1. Generates a caption for an image.
-2. Retrieves all reference captions associated with the image.
-3. Cleans and tokenizes the captions.
-4. Compares the generated caption with the reference captions.
-5. Calculates BLEU-1 and BLEU-4.
-
-The evaluation also avoids evaluating the same image multiple times when an image has multiple reference captions.
+The key result is that **the model trained for only 10 epochs was able to reduce evaluation time by approximately 23% using confidence-based early exit, while maintaining — and in this run slightly improving — the BLEU scores.**
 
 ---
 
-## 📝 Caption Generation
+# 📜 License
 
-Caption generation is performed autoregressively.
-
-The process starts with:
-
-```text
-<SOS>
-```
-
-Then the model predicts the next token:
-
-```text
-<SOS> → word₁ → word₂ → word₃ → ... → <EOS>
-```
-
-Generation stops when the model predicts:
-
-```text
-<EOS>
-```
-
-or the maximum generation length is reached.
+This project is released under the **MIT License**.
 
 ---
 
-## ✨ Main Features
+# 👨🏻‍💻 Author
 
-- 🖼️ Image Captioning
-- 👁️ ResNet-50 Visual Encoder
-- 🤖 Custom Transformer Decoder
-- 🔀 Mixture of Experts Architecture
-- 🎯 Noisy Expert Routing
-- 👀 Multi-Head Self-Attention
-- 🔗 Cross-Attention
-- ⚖️ Expert Diversity Loss
-- 🔊 Gaussian Noise on Images
-- 📝 Gaussian Noise on Text Embeddings
-- 📊 BLEU-1 and BLEU-4 Evaluation
-- 📈 TensorBoard Training Logs
-- 🌐 Streamlit Inference Application
-- 💾 Automatic Model Checkpointing
-- 🧮 ~186.9M Trainable Parameters
-
----
-
-## 🔮 Future Improvements
-
-Possible future improvements include:
-
-- Adding the trained checkpoints to the repository or hosting them separately.
-- Training for more epochs.
-- Experimenting with different numbers of experts.
-- Improving the expert routing mechanism.
-- Experimenting with different routing strategies.
-- Adding beam search instead of greedy decoding.
-- Testing stronger pretrained visual encoders.
-- Evaluating with additional metrics such as CIDEr and METEOR.
-- Optimizing the model's parameter count and inference speed.
-- Performing more extensive hyperparameter tuning.
-
----
-
-## 📌 Summary
-
-This project implements an **Image Captioning system based on a custom MOE Transformer architecture**.
-
-The system combines a pretrained **ResNet-50 encoder** with a **Mixture of Experts Transformer decoder**. The decoder uses noisy routing, shared and specialized experts, self-attention, cross-attention, and diversity loss.
-
-An additional experimental component is the use of **Gaussian noise on both image inputs and text embeddings during training**.
-
-The final trained model contains approximately **186.9M parameters** and achieved:
-
-```text
-BLEU-1 : 0.753
-BLEU-4 : 0.397
-```
-
-The project also provides a Streamlit interface for using the trained model to generate captions from new images.
-
-
-## 📜 License
-
-This project is released under the MIT License.
-
----
-
-## 🙌 Acknowledgments
-
-Built to explore modern Vision-Language Models, Transformers, and Sparse Mixture of Experts architectures for Image Captioning.
-
----
-
-##  👨🏻‍💻 Author
-
-- **Ziad Abdel-Haliem Teama** 
+**Ziad Abdel-Haliem Teama**
