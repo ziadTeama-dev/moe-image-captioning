@@ -631,9 +631,12 @@ Confidence = 0.5
 5.43 minutes
 ```
 
+
 while the BLEU scores remained stable and slightly improved in the tested run.
 
 This suggests that **dynamic computation can be a promising direction for making image-captioning models more efficient**.
+
+
 
 ---
 
@@ -679,6 +682,9 @@ Evaluation Time = 5.43 minutes
 ```
 
 The key result is that **the model trained for only 10 epochs was able to reduce evaluation time by approximately 23% using confidence-based early exit, while maintaining — and in this run slightly improving — the BLEU scores.**
+
+> My intuition is **that as the model is trained for longer, its inference time may decreases.**
+
 
 ---
 

@@ -16,9 +16,13 @@ class Moe_Transformer(nn.Module):
         self.num_heads=num_heads
         self.head_dim=head_dim
         self.padding_idx=padding_idx
-        
+
+        # embiddings layers 
         self.em_layer = nn.Embedding(self.vocab_size,self.input_size,padding_idx=self.padding_idx)
         self.pos_em   = nn.Embedding(max_length,self.input_size)
+
+
+        # this layer diside wheather to early exit or not
 
         self.exit_layers =nn.ModuleList(
             
@@ -30,7 +34,7 @@ class Moe_Transformer(nn.Module):
         for _ in range(self.num_layers)
         )
 
-
+        # for each Layer it's own classification layer to learn own representation
         self.early_classification_layer =nn.ModuleList(
             
          nn.Sequential(
@@ -40,6 +44,8 @@ class Moe_Transformer(nn.Module):
         )
         for _ in range(self.num_layers)
         )
+
+        # decoders Layers
             
 
         self.decoder_layers  = nn.ModuleList(
