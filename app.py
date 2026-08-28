@@ -4,9 +4,9 @@ import torch
 import streamlit as st
 from PIL import Image
 
-from model.model import encoder_decoder
 from model.generation import image_caption
-from model.trainer import flick, vocab_size
+from model.trainer import vocab
+# from model.model_config import model
 
 
 # -----------------------------
@@ -15,25 +15,16 @@ from model.trainer import flick, vocab_size
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+
 # -----------------------------
 # Load Model (Runs Once)
 # -----------------------------
 @st.cache_resource
 def load_model():
+    # this will load first the archticher and it's configuration
+    from model.model_config import model
 
-    model = encoder_decoder(
-        em_size=712,
-        hidden_size=712,
-        expand_scale=2,
-        vocab_size=vocab_size,
-        num_expert=3,
-        max_length=1000,
-        num_head=8,
-        head_dim=712,
-        num_layers=4,
-        dropout_size=0.2
-    ).to(device)
-
+    # then loading the checkpoint
     checkpoint_path = "checkpoints/checkpoint_9.pth"
 
     if not os.path.exists(checkpoint_path):
@@ -91,7 +82,7 @@ if uploaded_file is not None:
                 caption = image_caption(
                     model=model,
                     full_image_path=tmp.name,
-                    vocab=flick.vocab.W2i,
+                    vocab=vocab.W2i,
                     max_length=40,
                     show_image=False
                 )

@@ -103,14 +103,16 @@ class encoder_decoder(nn.Module):
                                      self.head_dim,
                                      self.num_layers,
                                      self.num_expert,
-                                     self.dropout_size)
+                                     self.dropout_size,
+                                     
+                                     )
         
         self.decoder.em_layer=nn.Identity()
         
         
 
     
-    def forward(self,images,captions,target_caption,padding_mask=None,enc_padding_mask=None , add_noise = True , confidance = 1):
+    def forward(self,images,captions,target_caption,padding_mask=None,enc_padding_mask=None , add_noise = True ,noise_strength=.3, confidance = 1):
         image_pos=torch.arange(0,49,device=images.device).expand(images.size(0),-1)
         image_posem=self.pos_em_image(image_pos)
 
@@ -126,7 +128,7 @@ class encoder_decoder(nn.Module):
               rand_gu=torch.zeros_like(image_posem)
 
         image_em=self.encoder(images)
-        image_em = image_em + image_posem + rand_gu.to(device=images.device) * torch.rand(image_em.size(0),image_em.size(1),1).to(images.device) * .5
+        image_em = image_em + image_posem + rand_gu.to(device=images.device) * torch.rand(image_em.size(0),image_em.size(1),1).to(images.device) * noise_strength
 
         captions_em=self.em_layer(captions)
 
@@ -136,7 +138,8 @@ class encoder_decoder(nn.Module):
                                                                                                        image_em,
                                                                                                        padding_mask,
                                                                                                        enc_padding_mask, 
-                                                                                                       add_noise , 
+                                                                                                       add_noise ,
+                                                                                                       noise_strength,
                                                                                                        confidance)
 
         return logits, exit_layer, div_loss, confidance_loss, exit_cr_entropy , exit_probability

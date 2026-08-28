@@ -72,7 +72,7 @@ class Moe_Transformer(nn.Module):
 
     
 
-    def forward(self,input,target,encoder_feature,padding_mask=None,enc_padding_mask=None , add_noise:bool =True , confidance = 1):
+    def forward(self,input,target,encoder_feature,padding_mask=None,enc_padding_mask=None , add_noise:bool =True, noise_strength=.3 , confidance = 1):
         
         ems=self.em_layer(input)
         B , seq , _ = ems.shape
@@ -97,7 +97,7 @@ class Moe_Transformer(nn.Module):
 
 
         # adding ems + em_postion
-        out=ems+em_postion+ (rand_gu.to(input.device)*(torch.rand(B,seq,1).to(input.device)*.5))
+        out=ems+em_postion+ (rand_gu.to(input.device)*(torch.rand(B,seq,1).to(input.device) * noise_strength))
 
         # the out will go throught all the layer of the decoders sequantially 
         div_loss=0

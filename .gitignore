@@ -6,3 +6,6 @@ Data/*
 test_images/*
 
 old_checkpoints/*
+
+test1_without gussian_noise and early layer classification loss with beta of .1 & confiance_loss with beta2 of 1e-3/*
+test2_with gussian_noise and noise_strength = .2 and early layer classification loss wiht beta of .1 & confiance_loss with beta2 of 1e-3/*

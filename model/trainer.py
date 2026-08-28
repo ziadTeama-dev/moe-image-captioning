@@ -131,6 +131,7 @@ def training(model,
              save_epoch:int=None,
              lr_scheduler=None,
              add_noise = False,
+             noise_strength = .3,
              checkpoints_path:str=None):
     """
     model: the caption model that you will train on images,captions
@@ -140,7 +141,9 @@ def training(model,
     save_epoch:determine when to take a checkpoint of the model
     optimizer: the optimizer used to train the model (adam,adamw,sdg,...etc)
     checkpoints_path: the path you specify to save a checkpoint of model
-    lr_scheduler : used to decay the learning rate 
+    lr_scheduler : used to decay the learning rate
+    add_noise : used as regulization step
+    noise_strength : determine how strong the noise is 
     device: 'cuda','cpu'
     """
     
@@ -158,7 +161,7 @@ def training(model,
 
 
 
-    print(f'Total batch_size = batch_size * accumlation_steps = ( {batch_size} * {accumlation_steps} ) ={batch_size*accumlation_steps}')
+    print(f'Total batch_size = batch_size * accumlation_steps = ( {batch_size} * {accumlation_steps} ) = {batch_size*accumlation_steps}')
 
     if os.path.exists(f"{checkpoints_path}"):
         checkpoint = torch.load(f"{checkpoints_path}", map_location=device)
@@ -210,7 +213,8 @@ def training(model,
                                                                                in_caption , 
                                                                                caption , 
                                                                                padding_mask , 
-                                                                               add_noise = add_noise )
+                                                                               add_noise = add_noise,
+                                                                               noise_strength=noise_strength )
                 
 
                 out = out.reshape(-1, vocab_size).to(device)

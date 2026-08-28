@@ -26,8 +26,10 @@ training(model=model
          weight_decay=1e-3,
          l1_value=0, # L1 norm help the model pick the most important feature
          device=device,
-         logs_dir='Logs/test',
+         logs_dir='Logs/test2_with gussian_noise and noise_strength = .35 and early layer classification loss wiht beta of .1 & confiance_loss with beta2 of 1e-3',
          save_epoch=1, # determine what when to make a checkpoint
          lr_scheduler=lr_decay, #decreese the learning rate **Mostly** each epoch 
+         add_noise=True, #add noise to the both output attention of the image and token embidding 
+         noise_strength=.35
 
          )
